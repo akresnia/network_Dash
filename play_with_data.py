@@ -36,35 +36,40 @@ g = h5py.File("mytestfile.hdf5", "r")
 
 
 dset = g['results'] 
-#flow difference day2 - day1
+#flow difference day2 - day1 -> edges' weights
 flows1 = g['results/day_1/branches']
 flows2 = g['results/day_2/branches']
+assert(flows2[:,:2].all() == flows1[:,:2].all()) #check if branches didn't change
 flow_diff = flows2[:,2] - flows1[:,2]
-#print(flow_diff.T, flows1[:,:2][0])
 flows = flows1[:]
 flows[:,2] = flow_diff + np.mean(flows1[:,2])
-print(flows)
+
 edges = tuple(flows)
 weights = flows[:,2]
 
 node_list = dset['day_1/nodes'][:,0]
-print(node_list)
+N = len(node_list)
+givers_list_mask = np.empty((2,N), dtype=bool)
+takers_list_mask = np.empty((2,N), dtype=bool)
+rest_mask = np.empty((2,N), dtype=bool)
+supplier_nodes = [[],[]]
+receiver_nodes = [[],[]]
 
-#nodeList_more = [nd for i,nd in enumerate(dset['day_1/nodes'][:,0]) \
-#    if dset['day_1/nodes'][i,2]> dset['day_2/nodes'][i,2]]
-givers_list_mask1 = dset['day_1/gens'][:,1]>dset['day_1/nodes'][:,2]
-takers_list_mask1 = dset['day_1/gens'][:,1]<dset['day_1/nodes'][:,2]
-rest_mask1 = ~(givers_list_mask1+takers_list_mask1)
-supplier_nodes1 = dset['day_1/nodes'][givers_list_mask1,0].tolist()
-receiver_nodes1 = dset['day_1/nodes'][takers_list_mask1,0].tolist() 
+for i in [1,2]:
+    generation = dset['day_{}/gens'.format(i)][:,1]
+    demand = dset['day_{}/nodes'.format(i)][:,2]
+    givers_list_mask[i-1] = generation > demand
+    takers_list_mask[i-1] = generation < demand
+    rest_mask[i-1] = ~(givers_list_mask[i-1]+takers_list_mask[i-1])
+    supplier_nodes[i-1] = dset['day_{}/nodes'.format(i)][givers_list_mask[i-1,:],0].tolist()
+    receiver_nodes[i-1] = dset['day_{}/nodes'.format(i)][takers_list_mask[i-1,:],0].tolist() 
 
-edge_colors = np.array(['black']*len(node_list))
-edge_colors[givers_list_mask1] = 'y'
-edge_colors[takers_list_mask1] = 'red'
-print(edge_colors, node_list[takers_list_mask1],receiver_nodes1[:])
+edge_colors = np.array(['black']*N)
+edge_colors[givers_list_mask[0]] = 'y'
+edge_colors[takers_list_mask[0]] = 'red'
 
 #print(givers_list_mask1, takers_list_mask1,rest_mask1)
-print(edge_colors[givers_list_mask1])
+#print(edge_colors[givers_list_mask1])
 #print(receiver_nodes1)
 #nodeList_same = [nd for i,nd in enumerate(dset['day_1/nodes'][:,0]) \
 #    if dset['day_1/nodes'][i,2]== dset['day_2/nodes'][i,2]]
@@ -83,13 +88,13 @@ G.add_weighted_edges_from(edges)
 #nodes = demand - generation -> zero/pobiera/generuje/zmienił w dol/zmienil w gore
 #edges = flow2-flow1
 position = nx.circular_layout(G)
-nx.draw_networkx_nodes(G,position, nodelist=supplier_nodes1, \
-    node_color="g", edgecolors=edge_colors[givers_list_mask1])
-nx.draw_networkx_nodes(G,position, nodelist=receiver_nodes1, \
-    node_color="r")
-nx.draw_networkx_nodes(G,position, nodelist=node_list[rest_mask1].tolist(), \
-    node_color="b")
-
+nx.draw_networkx_nodes(G,position, nodelist=supplier_nodes[1], \
+    node_color="g", edgecolors=edge_colors[givers_list_mask[0]], linewidths=4)
+nx.draw_networkx_nodes(G,position, nodelist=receiver_nodes[1], \
+    node_color="r", edgecolors=edge_colors[takers_list_mask[0]],linewidths=4)
+nx.draw_networkx_nodes(G,position, nodelist=node_list[rest_mask[1].tolist()], \
+    node_color="b",edgecolors=edge_colors[rest_mask[0].tolist()], linewidths=4)
+#here maybe different colour for edges which are ositive and negative and width with abs (without mean)
 nx.draw_networkx_edges(G,position, width=weights)
 nx.draw_networkx_labels(G,position)
 plt.show()
