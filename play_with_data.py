@@ -44,20 +44,29 @@ flows2 = g['results/hour_2/branches']
 assert(flows2[:,:2].all() == flows1[:,:2].all()) #check if branches didn't change
 flow_diff = flows2[:,2] - flows1[:,2]
 flows = flows1[:]
-M = len(flow_diff)
+#temp = flows2[:]
+N_edges = len(flow_diff)
 #print([flow_diff[i] if abs(flow_diff[i])>0 else 1 for i in range(M)])
-flows[:,2] = [flow_diff[i] if abs(flow_diff[i])>0 else 1 for i in range(M)]
+#change direction of arrow when the flow is negative
+flows[:,:2] = [flows2[i,:2] if flows2[i,2]>0 else flows2[i,0:2][::-1] for i in range(N_edges)]
+#set the width to 1 when there is no flow difference
+flows[:,2] = [abs(flow_diff[i]+0.5) if abs(flow_diff[i])>0 else 1 for i in range(N_edges)]
 
-edge_colors = np.array(['k'] * M)
+
+edge_colors = np.array(['k'] * N_edges)
 edge_colors[flow_diff > 0] = 'g'
 edge_colors[flow_diff < 0] = 'r'
 #print(flow_diff)
 
-#edges = tuple(flows)
-edges = tuple(flows[:,:2])
-weights = flows[:,2]
+edges = tuple(flows)
+#edges = tuple(flows[:,:2])
+#weights = [5]* M
+#temp[:,2] = 35
+#edges = tuple(temp)
 
 node_list = dset['hour_1/nodes'][:,0]
+#node_list = np.array([int(i) for i in node_list])
+print(node_list)
 N = len(node_list)
 suppliers_mask = np.zeros((2,N), dtype=bool)
 receivers_mask = np.ones((2,N), dtype=bool)
@@ -71,17 +80,14 @@ for i in [0,1]:
     generation = gns[:,1]
     demand = nds[:,2]
     for j,gen_node in enumerate(gns[:,0]):
-        print(gen_node)
         #same_node = nds[node_list==gen_node,:]
         node_idx = np.where(node_list==gen_node)[0]
-        print(node_idx)
         if generation[j] > demand[node_idx]:
             suppliers_mask[i,node_idx]=True
             receivers_mask[i,node_idx]=False
         elif generation[j] == demand[node_idx]:
             rest_mask[i,node_idx]=True
             receivers_mask[i,node_idx]=False
-    print(node_list,generation,demand)
     #suppliers_mask[i] = generation > demand
     #receivers_mask[i] = generation < demand
     #rest_mask[i] = ~(suppliers_mask[i]+receivers_mask[i])
@@ -93,8 +99,8 @@ node_edge_colors[suppliers_mask[0]] = 'y'
 node_edge_colors[receivers_mask[0]] = 'coral'
 
 G = nx.DiGraph()
-G.add_nodes_from(dset['hour_1/nodes'][:,0])
-G.add_edges_from(edges)
+G.add_nodes_from(node_list)
+G.add_weighted_edges_from(edges)
 #weights = [G[u][v]['weight'] for u,v in G.edges()]
 
 #print(weights)
@@ -102,15 +108,36 @@ G.add_edges_from(edges)
 #M = G.number_of_edges()
 #nodes = demand - generation -> zero/pobiera/generuje/zmienił w dol/zmienil w gore
 #edges = flow2-flow1
-position = nx.single_source_shortest_path_length(G, 5)
+# max_deg = max([d for n, d in G.degree()])
+# print(max_deg)
+# nlist = [[],[],[],[],[]]
+# for i, deg in G.degree:
+#     print(i, deg)
+#     nlist[deg-1].append(i)
+#print(nlist1)
+#position = nx.shell_layout(G, scale=1.5, nlist=nlist)
+#position = nx.shell_layout(G, scale=1.5, nlist=[rest_mask[0].tolist(), \
+#    supplier_nodes[0], receiver_nodes[0][::2], receiver_nodes[0][1::2]])
+#pos_temp = dict((n,(5+n,n)) for n in node_list)
+# pos_temp.keys = node_list
+# for i, n in enumerate(node_list):
+#     pos_temp[i]=(5,n)
+#position = nx.spring_layout(G, k=4, scale=20.0, iterations=10000, pos=pos_temp)
+#Gcc = sorted(nx.DiGraph.subgraph(G), key=len, reverse=True)[0]
+#pos = nx.spring_layout(Gcc, k=4, scale=20.0, iterations=10000)
+
+position = graphviz_layout(G, prog='fdp')
+plt.axis('off')
 nx.draw_networkx_nodes(G,position, nodelist=supplier_nodes[1], \
-    node_color="g", edgecolors=node_edge_colors[suppliers_mask[0]], linewidths=4)
+    node_color="g", edgecolors=node_edge_colors[suppliers_mask[0]], linewidths=4, \
+    node_size = 7)
 nx.draw_networkx_nodes(G,position, nodelist=receiver_nodes[1], \
-    node_color="r", edgecolors=node_edge_colors[receivers_mask[0]],linewidths=4)
+    node_color="r", edgecolors=node_edge_colors[receivers_mask[0]],linewidths=4, \
+    node_size = 7)
 nx.draw_networkx_nodes(G,position, nodelist=node_list[rest_mask[1].tolist()], \
     node_color="b",edgecolors=node_edge_colors[rest_mask[0].tolist()], linewidths=4)
 #here maybe different colour for edges which are ositive and negative and width with abs (without mean)
-nx.draw_networkx_edges(G,position, width=weights, edge_color=edge_colors)
-nx.draw_networkx_labels(G,position)
-
+nx.draw_networkx_edges(G,position, width=flows[:,2], edge_color=edge_colors)
+nx.draw_networkx_labels(G,position, font_size=10)
+#print([[n, d] for n, d in G.degree()])
 plt.show()
