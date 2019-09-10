@@ -15,11 +15,11 @@ def get_flow_difference(dset, hour1, hour2):
     #change direction of arrow when the flow is negative
     flows[:,:2] = [flows2[i,:2] if flows2[i,2]>0 else flows2[i,:2][::-1] for i in range(N_edges)]
     #set the edge weight to 1 when there is no flow difference
-    flows[:,2] = [abs(flow_diff[i]+0.5) if abs(flow_diff[i])>0 else 1 for i in range(N_edges)]
+    flows[:,2] = [abs(flow_diff[i])+0.5 if abs(flow_diff[i])>0 else 1 for i in range(N_edges)]
     
-    edge_colors = np.array(['k'] * N_edges)
-    edge_colors[flow_diff > 0] = 'g'
-    edge_colors[flow_diff < 0] = 'r'
+    edge_colors = np.array(['black'] * N_edges)
+    edge_colors[flow_diff > 0] = 'green'
+    edge_colors[flow_diff < 0] = 'red'
     edges = tuple(flows)
     return flows, edge_colors, edges
 
