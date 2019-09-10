@@ -44,7 +44,7 @@ flows2 = g['results/hour_2/branches']
 assert(flows2[:,:2].all() == flows1[:,:2].all()) #check if branches didn't change
 flow_diff = flows2[:,2] - flows1[:,2]
 flows = flows1[:]
-#temp = flows2[:]
+temp = flows2[:]
 N_edges = len(flow_diff)
 #print([flow_diff[i] if abs(flow_diff[i])>0 else 1 for i in range(M)])
 #change direction of arrow when the flow is negative
@@ -61,38 +61,42 @@ edge_colors[flow_diff < 0] = 'r'
 edges = tuple(flows)
 #edges = tuple(flows[:,:2])
 #weights = [5]* M
-#temp[:,2] = 35
-#edges = tuple(temp)
+temp[:,2] = 535
+edges = tuple(temp)
 
 node_list = dset['hour_1/nodes'][:,0]
-#node_list = np.array([int(i) for i in node_list])
-print(node_list)
 N = len(node_list)
-suppliers_mask = np.zeros((2,N), dtype=bool)
-receivers_mask = np.ones((2,N), dtype=bool)
-rest_mask = np.zeros((2,N), dtype=bool)
-supplier_nodes = [[],[]]
-receiver_nodes = [[],[]]
 
-for i in [0,1]:
-    gns = dset['hour_{}/gens'.format(i+1)]
-    nds = dset['hour_{}/nodes'.format(i+1)]
-    generation = gns[:,1]
-    demand = nds[:,2]
-    for j,gen_node in enumerate(gns[:,0]):
-        #same_node = nds[node_list==gen_node,:]
-        node_idx = np.where(node_list==gen_node)[0]
-        if generation[j] > demand[node_idx]:
-            suppliers_mask[i,node_idx]=True
-            receivers_mask[i,node_idx]=False
-        elif generation[j] == demand[node_idx]:
-            rest_mask[i,node_idx]=True
-            receivers_mask[i,node_idx]=False
-    #suppliers_mask[i] = generation > demand
-    #receivers_mask[i] = generation < demand
-    #rest_mask[i] = ~(suppliers_mask[i]+receivers_mask[i])
-    supplier_nodes[i] = nds[suppliers_mask[i,:],0].tolist()
-    receiver_nodes[i] = nds[receivers_mask[i,:],0].tolist() 
+def get_supplier_receiver_mask(dset, hour1, hour2, N):
+    suppliers_mask = np.zeros((2,N), dtype=bool)
+    receivers_mask = np.ones((2,N), dtype=bool)
+    rest_mask = np.zeros((2,N), dtype=bool)
+    supplier_nodes = [[],[]]
+    receiver_nodes = [[],[]]
+
+    for i, h in enumerate([hour1,hour2]):
+        gns = dset['hour_{}/gens'.format(h)]
+        nds = dset['hour_{}/nodes'.format(h)]
+        generation = gns[:,1]
+        demand = nds[:,2]
+        for j, gen_node in enumerate(gns[:,0]):
+            #same_node = nds[node_list==gen_node,:]
+            node_idx = np.where(node_list==gen_node)[0]
+            if generation[j] > demand[node_idx]:
+                suppliers_mask[i,node_idx]=True
+                receivers_mask[i,node_idx]=False
+            elif generation[j] == demand[node_idx]:
+                rest_mask[i,node_idx]=True
+                receivers_mask[i,node_idx]=False
+        #suppliers_mask[i] = generation > demand
+        #receivers_mask[i] = generation < demand
+        #rest_mask[i] = ~(suppliers_mask[i]+receivers_mask[i])
+        supplier_nodes[i] = nds[suppliers_mask[i,:],0].tolist()
+        receiver_nodes[i] = nds[receivers_mask[i,:],0].tolist() 
+    return suppliers_mask, receivers_mask, rest_mask, supplier_nodes, receiver_nodes
+
+suppliers_mask, receivers_mask, rest_mask, supplier_nodes, receiver_nodes = \
+    get_supplier_receiver_mask(dset, 2, 3, N)
 
 node_edge_colors = np.array(['black'] * N)
 node_edge_colors[suppliers_mask[0]] = 'y'
@@ -130,14 +134,15 @@ position = graphviz_layout(G, prog='fdp')
 plt.axis('off')
 nx.draw_networkx_nodes(G,position, nodelist=supplier_nodes[1], \
     node_color="g", edgecolors=node_edge_colors[suppliers_mask[0]], linewidths=4, \
-    node_size = 7)
+    node_size = 200)
 nx.draw_networkx_nodes(G,position, nodelist=receiver_nodes[1], \
     node_color="r", edgecolors=node_edge_colors[receivers_mask[0]],linewidths=4, \
-    node_size = 7)
+    node_size = 1)
 nx.draw_networkx_nodes(G,position, nodelist=node_list[rest_mask[1].tolist()], \
     node_color="b",edgecolors=node_edge_colors[rest_mask[0].tolist()], linewidths=4)
 #here maybe different colour for edges which are ositive and negative and width with abs (without mean)
 nx.draw_networkx_edges(G,position, width=flows[:,2], edge_color=edge_colors)
 nx.draw_networkx_labels(G,position, font_size=10)
-#print([[n, d] for n, d in G.degree()])
+
+print("a", nx.nx_agraph.graphviz_layout(G))
 plt.show()
