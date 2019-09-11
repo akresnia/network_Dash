@@ -70,7 +70,7 @@ app.layout = html.Div([
                     Grubość strzałki odzwierciedla skalę zmiany w przepływach."), 
 
     html.P("Kolor węzła pokazuje czy liczba MW, które wyprodukował dany węzeł przewyższa jego zapotrzebowanie \
-        (supplier/receiver). \
+        (generator/receiver). \
         Kolor krawędzi odpowiada sytuacji w Godz_A, kolor wypełnienia odpowiada sytuacji w Godz_B.")], 
                     style = {'padding' : '50px' , 'backgroundColor' : 'lightcyan'}),
 
